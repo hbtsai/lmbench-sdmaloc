@@ -65,7 +65,7 @@ main(int ac, char **av)
 	len *= 1024 * 1024;
 
 	if (optind == ac - 1) {
-		fprintf(stderr, "\"stride=%d\n", STRIDE);
+		fprintf(stderr, "\"stride=%lu\n", STRIDE);
 		for (range = LOWER; range <= len; range = step(range)) {
 			loads(len, range, STRIDE, parallel, 
 			      warmup, repetitions);
@@ -73,7 +73,7 @@ main(int ac, char **av)
 	} else {
 		for (i = optind + 1; i < ac; ++i) {
 			stride = bytes(av[i]);
-			fprintf(stderr, "\"stride=%d\n", stride);
+			fprintf(stderr, "\"stride=%lu\n", stride);
 			for (range = LOWER; range <= len; range = step(range)) {
 				loads(len, range, stride, parallel, 
 				      warmup, repetitions);
@@ -99,11 +99,14 @@ benchmark_loads(iter_t iterations, void *cookie)
 	register size_t i;
 	register size_t count = state->len / (state->line * 100) + 1;
 
+//	fprintf(stderr, "%s:%d p=%p\n", __FILE__, __LINE__, *p);
+
 	while (iterations-- > 0) {
 		for (i = 0; i < count; ++i) {
 			HUNDRED;
 		}
 	}
+//	fprintf(stderr, "%s:%d p=%p\n", __FILE__, __LINE__, *p);
 
 	use_pointer((void *)p);
 	state->p[0] = (char*)p;
@@ -140,6 +143,8 @@ loads(size_t len, size_t range, size_t stride,
 	/*
 	 * Now walk them and time it.
 	 */
+
+	//fprintf(stderr, "%s:%d range=%zu\n",__FILE__, __LINE__,range );
 	benchmp(fpInit, benchmark_loads, mem_cleanup, 
 		100000, parallel, warmup, repetitions, &state);
 #endif

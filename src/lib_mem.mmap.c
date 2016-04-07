@@ -64,6 +64,7 @@ MEM_BENCHMARK_DEF(13, REPEAT_13, DEREF)
 MEM_BENCHMARK_DEF(14, REPEAT_14, DEREF)
 MEM_BENCHMARK_DEF(15, REPEAT_15, DEREF)
 
+int fd;
 
 size_t*	words_initialize(size_t max, int scale);
 
@@ -82,7 +83,9 @@ mem_cleanup(iter_t iterations, void* cookie)
 	if (iterations) return;
 
 	if (state->addr) {
-		free(state->addr);
+	//	free(state->addr);
+		munmap(state->addr, state->maxlen + 2 * state->pagesize);
+		close(fd);
 		state->addr = NULL;
 	}
 	if (state->lines) {
@@ -135,6 +138,12 @@ base_initialize(iter_t iterations, void* cookie)
 	struct mem_state* state = (struct mem_state*)cookie;
 	register char *p = 0 /* lint */;
 
+	fd = open("/mnt/sdmalloc/sdmalloc.4G", O_RDWR);
+	if(fd == -1)
+	{
+		perror("open error:");
+	}
+
 	if (iterations) return;
 
 	state->initialized = 0;
@@ -151,9 +160,12 @@ base_initialize(iter_t iterations, void* cookie)
 	lines = NULL;
 	pages = permutation(nmpages, state->pagesize);
 //	p = state->addr = (char*)malloc(state->maxlen + 2 * state->pagesize);
-// fprintf(stderr, "%s:%d alloc %lu\n", __FILE__, __LINE__, state->len+2*state->pagesize);
-	p = state->addr = (char*)malloc(state->len+2*state->pagesize);
+	p = state->addr = (char*)mmap(NULL, state->maxlen + 2 * state->pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
+
+
+
+//fprintf(stderr, "%s:%d mem alloc: %d\n", __FILE__, __LINE__, state->maxlen + 2 * state->pagesize);
 	state->nwords = nwords;
 	state->nlines = nlines;
 	state->npages = npages;
@@ -213,6 +225,7 @@ thrash_initialize(iter_t iterations, void* cookie)
 	size_t	npage;
 	char*	addr;
 
+//fprintf(stderr, "base_initialize\n");
 	base_initialize(iterations, cookie);
 	if (!state->initialized) return;
 	addr = state->base;
@@ -231,6 +244,7 @@ thrash_initialize(iter_t iterations, void* cookie)
 	 * the page table entries.
 	 */
 	if (state->len % state->pagesize) {
+//fprintf(stderr, "%s:%d words_initialize\n", __FILE__, __LINE__);
 		state->nwords = state->len / state->line;
 		state->words = words_initialize(state->nwords, state->line);
 		for (i = 0; i < state->nwords - 1; ++i) {
@@ -239,6 +253,7 @@ thrash_initialize(iter_t iterations, void* cookie)
 		*(char **)&addr[state->words[i]] = addr;
 		state->p[0] = addr;
 	} else {
+//fprintf(stderr, "%s:%d words_initialize\n", __FILE__, __LINE__);
 		state->nwords = state->pagesize / state->line;
 		state->words = words_initialize(state->nwords, state->line);
 
@@ -508,10 +523,9 @@ size_t*
 words_initialize(size_t max, int scale)
 {
 	size_t	i, j, nbits;
-
-	fprintf(stderr, "%s:%d malloc %zu\n", __FILE__, __LINE__, max);
-
 	size_t*	words = (size_t*)malloc(max * sizeof(size_t));
+
+//fprintf(stderr, "mem alloc: %d\n", max * sizeof(size_t));
 
 	if (!words) return NULL;
 
