@@ -112,6 +112,17 @@ benchmark_loads(iter_t iterations, void *cookie)
 	state->p[0] = (char*)p;
 }
 
+void gen_random(char *s, const int len) {
+
+    static const char alphanum[] =     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+ 
+	int i;
+    for (i = 0; i < len; ++i) {
+	        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+	    }
+ 
+    s[len] = 0;
+}
 
 void
 loads(size_t len, size_t range, size_t stride, 
@@ -128,7 +139,16 @@ loads(size_t len, size_t range, size_t stride,
 	state.maxlen = len;
 	state.line = stride;
 	state.pagesize = getpagesize();
+
+	int fd=0;
+	char fname[16]={'\0'};
+	gen_random(fname,8);
+//	fprintf(stderr, "fname=%s\n", fname);
+	sprintf(state.mem_file, "/mnt/sdmalloc/%s", fname);
+	fd = open(state.mem_file, O_CREAT | O_RDWR, 0600);
+	fallocate(fd, 0, 0, (state.len)+ ((state.pagesize)<<1) );
 	count = 100 * (state.len / (state.line * 100) + 1);
+	close(fd);
 
 #if 0
 	(*fpInit)(0, &state);

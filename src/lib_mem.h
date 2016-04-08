@@ -39,6 +39,7 @@ struct mem_state {
 	size_t*	pages;
 	size_t*	lines;
 	size_t*	words;
+	char mem_file[64];
 };
 
 void stride_initialize(iter_t iterations, void* cookie);
