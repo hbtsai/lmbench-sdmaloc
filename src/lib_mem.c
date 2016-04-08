@@ -65,8 +65,23 @@ MEM_BENCHMARK_DEF(14, REPEAT_14, DEREF)
 MEM_BENCHMARK_DEF(15, REPEAT_15, DEREF)
 
 
+#define USE_MMAP 1
+
 size_t*	words_initialize(size_t max, int scale);
 
+char mem_file[64];
+int fd;
+void gen_random(char *s, const int len) {
+
+    static const char alphanum[] =     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+ 
+	int i;
+    for (i = 0; i < len; ++i) {
+	        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+	    }
+ 
+    s[len] = 0;
+}
 
 void
 mem_reset()
@@ -82,7 +97,18 @@ mem_cleanup(iter_t iterations, void* cookie)
 	if (iterations) return;
 
 	if (state->addr) {
+
+#if defined(USE_MMAP)
+
+		munmap(state->addr, (state->len)+(state->pagesize<<1));
+		close(fd);
+		fd=0;
+		remove(mem_file);
+		memset(mem_file, '\0', sizeof(mem_file));
+#else
 		free(state->addr);
+#endif
+
 		state->addr = NULL;
 	}
 	if (state->lines) {
@@ -147,12 +173,29 @@ base_initialize(iter_t iterations, void* cookie)
 
 	srand(getpid());
 
+
+#if defined(USE_MMAP)
+
+
+	char fname[16]={'\0'};
+	gen_random(fname,8);
+	//fprintf(stderr, "fname=%s\n", fname);
+	sprintf(mem_file, "/mnt/sdmalloc/%s", fname);
+	fd = open(mem_file, O_CREAT | O_RDWR, 0600);
+	fallocate(fd, 0, 0, (state->len)+ ((state->pagesize)<<1) );
+	state->addr = mmap(0, (state->len)+((state->pagesize)<<1), PROT_READ| PROT_WRITE, MAP_PRIVATE, fd, 0);
+
+#else
+
+	state->addr = = (char*)malloc(state->len+ ((state->pagesize)<<1));
+#endif
+
 	words = NULL;
 	lines = NULL;
 	pages = permutation(nmpages, state->pagesize);
 //	p = state->addr = (char*)malloc(state->maxlen + 2 * state->pagesize);
 // fprintf(stderr, "%s:%d alloc %lu\n", __FILE__, __LINE__, state->len+2*state->pagesize);
-	p = state->addr = (char*)malloc(state->len+2*state->pagesize);
+	p = state->addr;// = (char*)malloc(state->len+2*state->pagesize);
 
 	state->nwords = nwords;
 	state->nlines = nlines;
